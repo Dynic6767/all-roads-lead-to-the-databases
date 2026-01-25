@@ -1,12 +1,12 @@
 import sqlite3
 from config import DATABASE
 
-skills = [ (_,) for _ in (['Python', 'SQL', 'API', 'telegram'])]
-statuses = [ (_,) for _ in (['На этапе проектирования', 'В процессе разработки', 'Разработан. Готов к использованию.', 'Обновлен', 'Завершен. Не поддерживается'])]
+skills = [(_,) for _ in (['Python', 'SQL', 'API', 'telegram'])]
+statuses = [(_,) for _ in (['На этапе проектирования', 'В процессе разработки', 'Разработан. Готов к использованию.', 'Обновлен', 'Завершен. Не поддерживается'])]
 
 class DB_Manager:
     def __init__(self, database):
-        self.database = database # имя базы данных
+        self.database = database
         
     def create_tables(self):
         conn = sqlite3.connect(self.database)
@@ -19,6 +19,7 @@ class DB_Manager:
                         description TEXT,
                         url TEXT,
                         status_id INTEGER,
+                        photo TEXT,  
                         FOREIGN KEY (status_id)  REFERENCES status (status_id))
         """)
             conn.execute(""" CREATE TABLE status(
@@ -37,6 +38,29 @@ class DB_Manager:
                         FOREIGN KEY (project_id)  REFERENCES projects (project_id),
                         FOREIGN KEY (skill_id)  REFERENCES skills (skill_id))
         """)
+
+    def add_photo_column(self):
+        conn = sqlite3.connect(self.database)
+        cursor = conn.cursor()
+        
+        try:
+            alter_query = "ALTER TABLE projects ADD COLUMN photo TEXT"
+            cursor.execute(alter_query)
+        except sqlite3.OperationalError:
+            pass
+        
+        photo_data = {
+            1: 'C:\kodland\dbbaza\project 1.png',
+            2: 'C:\kodland\dbbaza\project 2.png',
+            3: 'C:\kodland\dbbaza\project 3.png',
+        }
+        
+        for project_id, photo in photo_data.items():
+            update_query = "UPDATE projects SET photo = ? WHERE project_id = ?"
+            cursor.execute(update_query, (photo, project_id))
+        
+        conn.commit()
+        conn.close()
 
     def __executemany(self, sql, data):
         conn = sqlite3.connect(self.database)
@@ -113,7 +137,7 @@ class DB_Manager:
     
     def get_project_info(self, user_id, project_name):
         sql = """
-        SELECT project_name, description, url, status_name FROM projects 
+        SELECT project_name, description, url, status_name, photo FROM projects 
         JOIN status ON
         status.status_id = projects.status_id
         WHERE project_name=? AND user_id=?
@@ -125,8 +149,8 @@ class DB_Manager:
         WHERE skill_id = ? AND project_id = ? """
         self.__executemany(sql, [(skill_id, project_id)])
 
-
 if __name__ == '__main__':
     manager = DB_Manager(DATABASE)
     manager.create_tables()
     manager.default_insert()
+    manager.add_photo_column() 
